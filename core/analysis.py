@@ -12,8 +12,7 @@ from operator import itemgetter
 import itertools
 import xlsxwriter
 
-from core.ambient import *
-from core.not_ambient import *
+from core.analysis_helpers import *
 
 
 def analyze_all_channels(df, channels, amb, amb_errors, tc_channel_names, upper_threshold, lower_threshold, tolerance, rate_adjustment):
@@ -45,13 +44,161 @@ def analyze_all_channels(df, channels, amb, amb_errors, tc_channel_names, upper_
             write_multiple_dfs(writer, [df_summary_tc, result_each_cycle, n_reach_summary], tc_name, 3)
     writer.save()
 
-def create_wb():
-    writer = pd.ExcelWriter('output.xlsx')
-    return writer
 
-def write_multiple_dfs(writer, df_list, worksheet_name, spaces):
-    row = 0
-    for dataframe in df_list:
-        dataframe.to_excel(writer, sheet_name=worksheet_name, startrow=row , startcol=0)   
-        row = row + len(dataframe.index) + spaces + 1
-    # don't save (wait for other thermocouples)
+def ambient_analysis(df, channels, amb, upper_threshold, lower_threshold):
+    ''' Analysis for ambient channel '''
+
+    ## get the big gap of ambient (channel_1)
+    df_chan_Ambient = df[['Sweep #', 'Time', amb]].sort_values(['Sweep #']).reset_index(drop=True)
+    sweep_screen = []
+    for i in range(df_chan_Ambient.shape[0]):
+        sweep_screen.append(i)
+    df_chan_Ambient.insert(0,'Sweep_screen',pd.Series(sweep_screen, index=df_chan_Ambient.index).tolist())
+    df_chan_Ambient_loc = get_points_above_and_below_thresholds(df_chan_Ambient, channels[0], upper_threshold, lower_threshold)
+    ambient = get_amb_key_points(df_chan_Ambient_loc)
+    ambient = calculate_ramp_stats(amb, ambient, df_chan_Ambient_loc)
+
+    ## differentiate profile starting point
+    start_index_list = find_starting_point_case(amb, ambient, upper_threshold, lower_threshold)  
+    down_i = start_index_list[0]
+    up_i = start_index_list[1]
+    cold_i = start_index_list[2]
+    hot_i = start_index_list[3]
+
+    ls_index_down, ls_index_up, ls_index_cold, ls_index_hot = [], [], [], []
+    for i in range(int(ambient.shape[0]/4)):
+        ls_index_down.append(i*4 + down_i)
+        ls_index_up.append(i*4 + up_i)
+        ls_index_cold.append(i*4 + cold_i)
+        ls_index_hot.append(i*4 + hot_i)
+
+    ### SOAK ANALYSIS
+    df_soak_high, df_soak_low = soak_analysis(amb, amb, ambient, df_chan_Ambient, ls_index_cold, ls_index_hot, start_index_list)
+
+    ### RAMP ANALYSIS
+    df_transform_down, df_transform_up = ramp_analysis(ambient, df_chan_Ambient, ls_index_down, ls_index_up)
+
+    ### Create summary
+    result_each_cycle, df_summary = create_analysis_summary(amb, amb, df_soak_high, df_soak_low, df_transform_down, df_transform_up)
+
+    return result_each_cycle, df_summary, ambient
+
+
+def single_channel_analysis(df, channel, amb, ambient, upper_threshold, lower_threshold):
+    ''' Analysis for non-ambient channels '''
+
+    df_summary = pd.DataFrame()
+    n_reach_summary = pd.DataFrame()
+
+    ####Test for one channel
+    df_chan = df[['Sweep #', 'Time']+[channel]].sort_values(['Sweep #']).reset_index(drop=True)
+    sweep_screen = []
+    for i in range(df_chan.shape[0]):
+        sweep_screen.append(i)
+    df_chan.insert(0,'Sweep_screen',pd.Series(sweep_screen, index=df_chan.index).tolist())
+
+    key_point_cycle, cycle_ls, result, n_reach = get_keypoints_for_each_cycle(channel, ambient, df_chan, upper_threshold, lower_threshold)
+
+    #### Cycle Statistics #####
+    if len(key_point_cycle) == ambient.shape[0]//4:  ## if all the cycles reached
+        selected_channel = pd.concat(key_point_cycle).sort_values(['Sweep_screen']).reset_index(drop=True)
+        
+        selected_channel = calculate_ramp_stats(channel, selected_channel, df_chan)
+        start_index_list = find_starting_point_case(channel, selected_channel, upper_threshold, lower_threshold) 
+        down_i = start_index_list[0]
+        up_i = start_index_list[1]
+        cold_i = start_index_list[2]
+        hot_i = start_index_list[3]
+
+        ls_index_down, ls_index_up, ls_index_cold, ls_index_hot = [], [], [], []
+        for i in range(int(ambient.shape[0]/4)):
+            ls_index_down.append(i*4 + down_i)
+            ls_index_up.append(i*4 + up_i)
+            ls_index_cold.append(i*4 + cold_i)
+            ls_index_hot.append(i*4 + hot_i)
+
+        ### SOAK ANALYSIS
+        df_soak_high, df_soak_low = soak_analysis(channel, amb, selected_channel, df_chan, ls_index_cold, ls_index_hot, start_index_list)
+
+        ### RAMP ANALYSIS
+        df_transform_down, df_transform_up = ramp_analysis(selected_channel, df_chan, ls_index_down, ls_index_up)
+
+        ## Create summary table
+        result_each_cycle, df_summary = create_analysis_summary(channel, amb, df_soak_high, df_soak_low, df_transform_down, df_transform_up)
+
+    elif not cycle_ls:  ##  none of the cycles reached
+        df_summary, result_each_cycle = pd.DataFrame(), pd.DataFrame()
+        ## pd.DataFrame({1:'NO CYCLES REACH THE THRESHOLDS'}, [0])
+
+    else:  ### only some of the cycles reached the thresholds
+        consecutive_cycle = []  ## list of lists --> cycle numbers that reached consecutively
+        for k, g in itertools.groupby(enumerate(cycle_ls), lambda x: x[1]-x[0] ) :
+            consecutive_cycle.append(list(map(itemgetter(1), g)))
+        
+        uncontn_cycle = []  ## list of lists of dataframes of keypoints that reached thresholds
+        
+        ## find consecutive cycle information
+        for k in range(len(consecutive_cycle)):
+            uncontn_cycle.append([])
+            for i in(consecutive_cycle[k]):
+                for j in range(len(key_point_cycle)):
+                    if key_point_cycle[j]['cycle#'][0] == i+1:
+                        #print(key_point_cycle[j]['cycle#'][0])
+                        uncontn_cycle[k].append(key_point_cycle[j].iloc[0:4])
+                        
+        uncontn_result_each_cycle = []  ## list of information for all channels
+        uncontn_summary = []  ## list indexed by cycle number ---> data is the partial summary of consecutive periods that reached threshols
+        
+        period = []  ## created index --> periods of consecutive cycles that reached thresholds
+        for x in range(len(uncontn_cycle)):  ## x: period
+            uncontn_result_each_cycle.append([])
+            uncontn_summary.append([])
+
+            selected_channel = pd.concat(uncontn_cycle[x]).sort_values(['Sweep_screen']).reset_index(drop=True)          
+            selected_channel = calculate_ramp_stats(channel, selected_channel, df_chan)
+            start_index_list = find_starting_point_case(channel, selected_channel, upper_threshold, lower_threshold) 
+            down_i = start_index_list[0]
+            up_i = start_index_list[1]
+            cold_i = start_index_list[2]
+            hot_i = start_index_list[3]
+
+            ls_index_down, ls_index_up, ls_index_cold, ls_index_hot = [], [], [], []
+            for i in range(int(selected_channel.shape[0]/4)):
+                ls_index_down.append(i*4 + down_i)
+                ls_index_up.append(i*4 + up_i)
+                ls_index_cold.append(i*4 + cold_i)
+                ls_index_hot.append(i*4 + hot_i)
+                
+            ### SOAK ANALYSIS
+            df_soak_high, df_soak_low = soak_analysis(channel, amb, selected_channel, df_chan, ls_index_cold, ls_index_hot, start_index_list)
+
+            ### RAMP ANALYSIS
+            df_transform_down, df_transform_up = ramp_analysis(selected_channel, df_chan, ls_index_down, ls_index_up)
+
+            ### Create summary table
+            result_each_cycle, df_summary = create_analysis_summary(channel, amb, df_soak_high, df_soak_low, df_transform_down, df_transform_up)
+
+            ## Add tables to period lists
+            uncontn_summary[x] = df_summary
+            cols_df_summary = df_summary.columns.tolist()
+            
+            result_each_cycle = result_each_cycle.round(2)
+            uncontn_result_each_cycle[x] = result_each_cycle
+            cols_result_each_cycle = result_each_cycle.columns.tolist()
+            
+            period.append(x)
+
+        df_summary = pd.concat(uncontn_summary,axis=0, keys=period)
+        result_each_cycle = pd.concat(uncontn_result_each_cycle,axis=0, keys=period)
+        df_summary = df_summary[cols_df_summary]
+        result_each_cycle = result_each_cycle[cols_result_each_cycle]
+        
+        nr_period = []
+        for i in range(len(n_reach)):
+            nr_period.append(i)
+
+        n_reach_summary = pd.concat(n_reach,axis=0, keys=nr_period)
+        n_reach_summary = n_reach_summary[['cycle#', 'Sweep #', 'Time', channel]]
+
+    return result_each_cycle, df_summary, n_reach_summary
+
