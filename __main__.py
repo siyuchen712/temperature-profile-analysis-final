@@ -8,10 +8,20 @@ from PyQt5.QtGui import *
 
 from core.analysis import *
 from core.data_import import *
+from core.re_and_globals import *
 
 
 TEXTFIELD_WIDTH = 3
 
+## widget row placement
+TEST_TYPE_ROW = 0
+DATAPATH_ROW = 1
+UPPER_TEMP_ROW = 2
+LOWER_TEMP_ROW = 3
+TOL_ROW = 4
+RT_ADJ_ROW = 5
+LOAD_TC_ROW = 6
+TC_LABELS_ROW = 7
 
 class ProfileUI(QWidget):
 
@@ -32,41 +42,48 @@ class ProfileUI(QWidget):
         self.setLayout(self.grid)
         self.grid.setSpacing(10)  # spacing between widgets
 
-        ## data folder
-        self.data_file_textfield = QLineEdit('(No Folder Selected)', self)
-        self.data_file_button = FileButton('Select Data Folder', self.data_file_textfield, self)
-        self.grid.addWidget(self.data_file_button, 0, 0)
-        self.grid.addWidget(self.data_file_textfield, 0, 1, 1, TEXTFIELD_WIDTH)
+        ## radio buttons (PTC or Thermal Shock)
+        self.ptc_radio = QRadioButton('PTC', self)
+        self.tshock_radio = QRadioButton('Thermal Shock', self)
+        self.grid.addWidget(self.ptc_radio, TEST_TYPE_ROW, 0)
+        self.grid.addWidget(self.tshock_radio, TEST_TYPE_ROW, 1)
 
-        ## temperature thresholds
+        ## datapath
+        self.data_file_textfield = QLineEdit('(No File Selected)', self)
+        self.data_file_button = FileButton('Select Data File', self.data_file_textfield, self)
+        self.grid.addWidget(self.data_file_button, DATAPATH_ROW, 0)
+        self.grid.addWidget(self.data_file_textfield, DATAPATH_ROW, 1, 1, TEXTFIELD_WIDTH)
+
+        ## upper temperature threshold
         self.upper_temp_label = QLabel('Upper Threshold (\N{DEGREE SIGN}C):', self)
         self.upper_temp_label.setFont(QFont("Times",weight=QFont.Bold))
         self.upper_temp_textfield = QLineEdit(self)
-        self.grid.addWidget(self.upper_temp_label, 1, 0)
-        self.grid.addWidget(self.upper_temp_textfield, 1, 1, 1, 1)
+        self.grid.addWidget(self.upper_temp_label, UPPER_TEMP_ROW, 0)
+        self.grid.addWidget(self.upper_temp_textfield, UPPER_TEMP_ROW, 1, 1, 1)
 
+        ## lower temperature threshold
         self.lower_temp_label = QLabel('Lower Threshold (\N{DEGREE SIGN}C):', self)
         self.lower_temp_label.setFont(QFont("Times",weight=QFont.Bold))
         self.lower_temp_textfield = QLineEdit(self)
-        self.grid.addWidget(self.lower_temp_label, 2, 0)
-        self.grid.addWidget(self.lower_temp_textfield, 2, 1, 1, 1)
+        self.grid.addWidget(self.lower_temp_label, LOWER_TEMP_ROW, 0)
+        self.grid.addWidget(self.lower_temp_textfield, LOWER_TEMP_ROW, 1, 1, 1)
 
         ## temperature tolerance
         self.temp_tol_label = QLabel('Temperature Tolerance (\N{DEGREE SIGN}C):', self)
         self.temp_tol_textfield = QLineEdit(self)
-        self.grid.addWidget(self.temp_tol_label, 3, 0)
-        self.grid.addWidget(self.temp_tol_textfield, 3, 1, 1, 1)
+        self.grid.addWidget(self.temp_tol_label, TOL_ROW, 0)
+        self.grid.addWidget(self.temp_tol_textfield, TOL_ROW, 1, 1, 1)
 
         ## threshold component rate adjustment
         self.adjustment_label = QLabel('Component rate adjustment (%):', self)
         self.adjustment_textfield = QLineEdit(self)
-        self.grid.addWidget(self.adjustment_label, 4, 0)
-        self.grid.addWidget(self.adjustment_textfield, 4, 1, 1, 1)
+        self.grid.addWidget(self.adjustment_label, RT_ADJ_ROW, 0)
+        self.grid.addWidget(self.adjustment_textfield, RT_ADJ_ROW, 1, 1, 1)
 
         ## load tc button
         self.load_tc_button = QPushButton('Load TCs...', self)
-        self.grid.addWidget(self.load_tc_button, 5, 0, 1, 4)
-        self.load_tc_button.clicked.connect(lambda: self.populate_tc_field_group(6))
+        self.grid.addWidget(self.load_tc_button, LOAD_TC_ROW, 0, 1, 4)
+        self.load_tc_button.clicked.connect(lambda: self.populate_tc_field_group(TC_LABELS_ROW))
         
         ## gui window properties
         self.setStyleSheet(open(self.stylesheet, "r").read())
@@ -102,9 +119,17 @@ class ProfileUI(QWidget):
             print('Data load error -- Make sure you have selected a valid data file')
 
     def retrieve_thermocouple_channels(self):
-        datapath = self.data_file_textfield.text()
-        df_temp = pd.read_csv(datapath, nrows=5)
-        self.channels = get_channels(df_temp)
+        if ( self.ptc_radio.isChecked or self.tshock_radio.isChecked ):
+            test_type = get_test_type(self.ptc_radio, self.tshock_radio)
+            if test_type == 'Thermal Shock':
+                regex_temp = '^Chan\s[0-9][0-9][0-9]'
+            elif test_type == 'PTC':
+                regex_temp = 'TC[1-4]$'
+            datapath = self.data_file_textfield.text()         
+            df_temp = pd.read_csv(datapath, nrows=5)  ## read first 5 rows of datafile
+            self.channels = get_channels(df_temp, regex_temp)
+        else:
+            print('You must define a valid datapath and test type first')
 
     def add_tc_field(self, i, channel, row):
         ''' Adds a single TC widget pair to the GUI '''
@@ -150,8 +175,8 @@ class AnalyzeButton(QPushButton):
         self.clicked[bool].connect(self.analyze)
 
     def analyze(self):
-
         ## Get user inputs
+        test_type = get_test_type(self.ui.ptc_radio, self.ui.tshock_radio)
         datapath = self.ui.data_file_textfield.text()
         tolerance = int(self.ui.temp_tol_textfield.text())
         upper_threshold = int(self.ui.upper_temp_textfield.text())
@@ -169,20 +194,23 @@ class AnalyzeButton(QPushButton):
             tc_channel_names[channel] = self.ui.tc_names[i].text()
 
         ### Print test parameters
+        print('Test Type:', test_type)
         print('Datapath:', datapath)
         print('Upper Threshold:', upper_threshold)
         print('Lower Threshold:', lower_threshold)
         print('Channels:', tc_channel_names)
 
         ## if all required user inputs exist
-        if datapath and upper_threshold and lower_threshold and ambient_channel_number and isinstance(tolerance, int):
+        if test_type and datapath and upper_threshold and lower_threshold and ambient_channel_number and isinstance(tolerance, int):
+            regex_temp, date_format = define_test_parameters(test_type)
+
             ### Do plot
-            #df, channels, amb, errors = import_data_with_date_index(datapath, ambient_channel_number)  ## df time indexed
+            #df, channels, amb, errors = import_data_with_date_index(datapath, ambient_channel_number, regex_temp)  ## df time indexed
             #plot_profile(title, df, channels, tc_channel_names)  ## plot with ploty
             
             ### Do analysis
-            df, channels, amb, amb_errors = import_data_without_date_index(datapath, ambient_channel_number) ## df raw for analysis
-            analyze_all_channels(df, channels, amb, amb_errors, tc_channel_names, upper_threshold, lower_threshold, tolerance, rate_adjustment)
+            df, channels, amb, amb_errors = import_data_without_date_index(datapath, ambient_channel_number, regex_temp) ## df raw for analysis
+            analyze_all_channels(df, channels, amb, amb_errors, tc_channel_names, upper_threshold, lower_threshold, tolerance, rate_adjustment, date_format)
         else:
             print('\n', 'All user inputs must be filled before analysis can be conducted. Please fill in the required fields.')
         print('\nANALYSIS COMPLETE.')
@@ -199,6 +227,23 @@ def convert_channel_to_num(channel_number):
         chan_num = 1
     return chan_num
 
+def get_test_type(ptc_widget, tshock_widget):
+    if ptc_widget.isChecked():
+        test_type = 'PTC'
+    elif tshock_widget.isChecked():
+        test_type = 'Thermal Shock'
+    else:
+        test_type = None
+    return test_type
+
+def define_test_parameters(test_type):
+    if test_type == 'Thermal Shock':
+        regex_temp = '^Chan\s[0-9][0-9][0-9]'
+        date_format = '%m/%d/%Y %H:%M:%S:%f'
+    elif test_type == 'PTC':
+        regex_temp = 'TC[1-4]$'
+        date_format = '%m/%d/%Y %I:%M:%S %p'
+    return regex_temp, date_format
 
 
 if __name__ == '__main__':

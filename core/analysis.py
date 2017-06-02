@@ -15,13 +15,13 @@ import xlsxwriter
 from core.analysis_helpers import *
 
 
-def analyze_all_channels(df, channels, amb, amb_errors, tc_channel_names, upper_threshold, lower_threshold, tolerance, rate_adjustment):
+def analyze_all_channels(df, channels, amb, amb_errors, tc_channel_names, upper_threshold, lower_threshold, tolerance, rate_adjustment, date_format):
     writer = create_wb() ## create workbook
     
     ## analyze ambient
     amb_upper_threshold = upper_threshold - tolerance
     amb_lower_threshold = lower_threshold + tolerance
-    result_each_cycle_amb, df_summary_amb, ambient = ambient_analysis(df, channels, amb, amb_upper_threshold, amb_lower_threshold)
+    result_each_cycle_amb, df_summary_amb, ambient = ambient_analysis(df, channels, amb, amb_upper_threshold, amb_lower_threshold, date_format)
     write_multiple_dfs(writer, [amb_errors, df_summary_amb, result_each_cycle_amb], 'Amb '+str(amb), 3)
 
     ### all other channels
@@ -36,7 +36,7 @@ def analyze_all_channels(df, channels, amb, amb_errors, tc_channel_names, upper_
         print(channel)
         if channel != amb:
             result_each_cycle, df_summary_tc, n_reach_summary = pd.DataFrame(), pd.DataFrame(), pd.DataFrame() ## ensure reset
-            result_each_cycle, df_summary_tc, n_reach_summary= single_channel_analysis(df, channel, amb, ambient, upper_threshold, lower_threshold)
+            result_each_cycle, df_summary_tc, n_reach_summary= single_channel_analysis(df, channel, amb, ambient, upper_threshold, lower_threshold, date_format)
             if tc_channel_names[channel]:
                 tc_name = tc_channel_names[channel] + ' (' + channel.split(' ')[1] + ')'
             else:
@@ -45,7 +45,7 @@ def analyze_all_channels(df, channels, amb, amb_errors, tc_channel_names, upper_
     writer.save()
 
 
-def ambient_analysis(df, channels, amb, upper_threshold, lower_threshold):
+def ambient_analysis(df, channels, amb, upper_threshold, lower_threshold, date_format):
     ''' Analysis for ambient channel '''
 
     ## get the big gap of ambient (channel_1)
@@ -56,7 +56,7 @@ def ambient_analysis(df, channels, amb, upper_threshold, lower_threshold):
     df_chan_Ambient.insert(0,'Sweep_screen',pd.Series(sweep_screen, index=df_chan_Ambient.index).tolist())
     df_chan_Ambient_loc = get_points_above_and_below_thresholds(df_chan_Ambient, channels[0], upper_threshold, lower_threshold)
     ambient = get_amb_key_points(df_chan_Ambient_loc)
-    ambient = calculate_ramp_stats(amb, ambient, df_chan_Ambient_loc)
+    ambient = calculate_ramp_stats(amb, ambient, df_chan_Ambient_loc, date_format)
 
     ## differentiate profile starting point
     start_index_list = find_starting_point_case(amb, ambient, upper_threshold, lower_threshold)  
@@ -84,7 +84,7 @@ def ambient_analysis(df, channels, amb, upper_threshold, lower_threshold):
     return result_each_cycle, df_summary, ambient
 
 
-def single_channel_analysis(df, channel, amb, ambient, upper_threshold, lower_threshold):
+def single_channel_analysis(df, channel, amb, ambient, upper_threshold, lower_threshold, date_format):
     ''' Analysis for non-ambient channels '''
 
     df_summary = pd.DataFrame()
@@ -103,7 +103,7 @@ def single_channel_analysis(df, channel, amb, ambient, upper_threshold, lower_th
     if len(key_point_cycle) == ambient.shape[0]//4:  ## if all the cycles reached
         selected_channel = pd.concat(key_point_cycle).sort_values(['Sweep_screen']).reset_index(drop=True)
         
-        selected_channel = calculate_ramp_stats(channel, selected_channel, df_chan)
+        selected_channel = calculate_ramp_stats(channel, selected_channel, df_chan, date_format)
         start_index_list = find_starting_point_case(channel, selected_channel, upper_threshold, lower_threshold) 
         down_i = start_index_list[0]
         up_i = start_index_list[1]
@@ -155,7 +155,7 @@ def single_channel_analysis(df, channel, amb, ambient, upper_threshold, lower_th
             uncontn_summary.append([])
 
             selected_channel = pd.concat(uncontn_cycle[x]).sort_values(['Sweep_screen']).reset_index(drop=True)          
-            selected_channel = calculate_ramp_stats(channel, selected_channel, df_chan)
+            selected_channel = calculate_ramp_stats(channel, selected_channel, df_chan, date_format)
             start_index_list = find_starting_point_case(channel, selected_channel, upper_threshold, lower_threshold) 
             down_i = start_index_list[0]
             up_i = start_index_list[1]

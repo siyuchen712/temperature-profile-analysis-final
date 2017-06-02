@@ -148,12 +148,14 @@ QRadioButton:disabled
 {
     color: #76797C;
 }
+
 QRadioButton::indicator
 {
     width: 21px;
     height: 21px;
 }
 
+/*
 QRadioButton::indicator:unchecked
 {
     image: url(:/qss_icons/rc/radio_unchecked.png);
@@ -195,6 +197,7 @@ QRadioButton::indicator:unchecked:disabled
 {
     image: url(:/qss_icons/rc/radio_unchecked_disabled.png);
 }
+*/
 
 
 QMenuBar

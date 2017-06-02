@@ -79,13 +79,13 @@ def ramp_analysis(ambient, df_chan_Ambient, ls_index_down, ls_index_up):
     df_transform_up =ambient.loc[ls_index_up].sort_values(['Sweep_screen']).reset_index(drop=True)
     return df_transform_down, df_transform_up
 
-def calculate_ramp_stats(channel_name, ambient, df_chan_Ambient_loc):
+def calculate_ramp_stats(channel_name, ambient, df_chan_Ambient_loc, date_format):
     ### Adds time duration
     time = []
     for m in range(ambient.shape[0]-1):
         a1 = ambient['Time'][m+1]
         a2 = ambient['Time'][m]
-        time.append((datetime.strptime(a1, DATE_FORMAT) - datetime.strptime(a2, DATE_FORMAT)).total_seconds())
+        time.append((datetime.strptime(a1, date_format) - datetime.strptime(a2, date_format)).total_seconds())
 
     time.append(0)
     ambient.insert(0,'duration',time)
@@ -141,6 +141,7 @@ def get_amb_key_points(df_chan_Ambient_loc):
 
     ripple_gap = (result_points_1['diff_1_sweep#'] + result_points_1['diff_2_sweep#']).mean()*0.5  ## TO DO --> set valid ratio
     cycle_index = result_points_1['diff_1_sweep#'][result_points_1['diff_1_sweep#'] + result_points_1['diff_2_sweep#']>ripple_gap].index.tolist()
+
     cycle_index.append(0)
     
     result_points_1 = result_points_1.loc[cycle_index]
@@ -151,8 +152,9 @@ def get_amb_key_points(df_chan_Ambient_loc):
     ambient = result_points_1  ## ambient --> dataframe of key points and later has all calculations
     return ambient
 
+
 def get_keypoints_for_each_cycle(channel, ambient, df_chan, upper_threshold, lower_threshold):
-    ''' Get get keypoints each cycle of a non-ambient channel'''
+    ''' Get get keypoints each cycle of a non-ambient channel (Thermal Shock) '''
 
     ls_cycle_bound = [] ## bounds rand to search each cycle for key points
     high_index = []  ## all poitns above high threshold
@@ -231,6 +233,9 @@ def get_keypoints_for_each_cycle(channel, ambient, df_chan, upper_threshold, low
         cycle_ls.remove(cycle)
 
     return key_point_cycle, cycle_ls, result, n_reach
+
+def get_keypoints_for_each_cycle_ptc(channel, ambient, df_chan, upper_threshold, lower_threshold):
+    pass
 
 
 ########### Determine Starting Point Case (e.g. - up-ramp, down-ramp, high-soak, low-soak)
