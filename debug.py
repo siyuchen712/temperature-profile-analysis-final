@@ -1,17 +1,21 @@
 
-from core.ambient import *
 from core.data_import import *
+from core.ptc_analysis import *
+from core.ptc_helpers import *
 
 
 
-datapath = r"C:\Users\bruno\Programming Projects\Temp Profile Analysis\test_data\dat00002.csv"
-upper_threshold, lower_threshold = 95, -40
+#datapath = r"C:\Users\bruno\Programming Projects\Temp Profile Analysis\test_data\dat00002.csv"
+datapath = r"C:\Users\bruno\Programming Projects\Temp Profile Analysis\test_data\20170206_184930_P552 MCA PV PTC_01_B3.txt"
+upper_threshold, lower_threshold = 85, -40
 tolerance = 3
 rate_adjustment = 0
 ambient_channel_number = 1
 
 ## DATA IMPORT
-df, channels, amb, amb_errors = import_data_without_date_index(datapath, ambient_channel_number)
+date_format = '%m/%d/%Y %I:%M:%S %p'
+regex_temp = 'TC[1-4]$'
+df, channels, amb, amb_errors = import_data_without_date_index(datapath, ambient_channel_number, regex_temp, sep='\t')
 
 ## PLOT
 #plot_profile(TITLE, df, channels)
@@ -21,5 +25,5 @@ tc_channel_names = {}
 for chan in channels:
     tc_channel_names[chan] = ''
 
-analyze_all_channels(df, channels, amb, amb_errors, tc_channel_names, upper_threshold, lower_threshold, tolerance, rate_adjustment)
+ptc_analyze_all_channels(df, channels, amb, amb_errors, tc_channel_names, upper_threshold, lower_threshold, tolerance, rate_adjustment, date_format)
 

@@ -6,7 +6,8 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 
-from core.analysis import *
+from core.tshock_analysis import *
+from core.ptc_analysis import *
 from core.data_import import *
 
 
@@ -120,12 +121,13 @@ class ProfileUI(QWidget):
     def retrieve_thermocouple_channels(self):
         if ( self.ptc_radio.isChecked or self.tshock_radio.isChecked ):
             test_type = get_test_type(self.ptc_radio, self.tshock_radio)
+            datapath = self.data_file_textfield.text() 
             if test_type == 'Thermal Shock':
                 regex_temp = '^Chan\s[0-9][0-9][0-9]'
+                df_temp = pd.read_csv(datapath, nrows=5)  ## read first 5 rows of datafile
             elif test_type == 'PTC':
                 regex_temp = 'TC[1-4]$'
-            datapath = self.data_file_textfield.text()         
-            df_temp = pd.read_csv(datapath, nrows=5)  ## read first 5 rows of datafile
+                df_temp = pd.read_csv(datapath, nrows=5, sep='\t')  ## read first 5 rows of datafile
             self.channels = get_channels(df_temp, regex_temp)
         else:
             print('You must define a valid datapath and test type first')
@@ -208,8 +210,13 @@ class AnalyzeButton(QPushButton):
             #plot_profile(title, df, channels, tc_channel_names)  ## plot with ploty
             
             ### Do analysis
-            df, channels, amb, amb_errors = import_data_without_date_index(datapath, ambient_channel_number, regex_temp) ## df raw for analysis
-            analyze_all_channels(df, channels, amb, amb_errors, tc_channel_names, upper_threshold, lower_threshold, tolerance, rate_adjustment, date_format)
+            if test_type == 'Thermal Shock':
+                df, channels, amb, amb_errors = import_data_without_date_index(datapath, ambient_channel_number, regex_temp) ## df raw for analysis
+                tshock_analyze_all_channels(df, channels, amb, amb_errors, tc_channel_names, upper_threshold, lower_threshold, tolerance, rate_adjustment, date_format)
+            elif test_type == 'PTC':
+                df, channels, amb, amb_errors = import_data_without_date_index(datapath, ambient_channel_number, regex_temp, sep='\t') ## df raw for analysis
+                print('df loaded...')
+                ptc_analyze_all_channels(df, channels, amb, amb_errors, tc_channel_names, upper_threshold, lower_threshold, tolerance, rate_adjustment, date_format)
         else:
             print('\n', 'All user inputs must be filled before analysis can be conducted. Please fill in the required fields.')
         print('\nANALYSIS COMPLETE.')
