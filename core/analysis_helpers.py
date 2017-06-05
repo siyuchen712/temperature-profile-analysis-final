@@ -11,8 +11,6 @@ import plotly.graph_objs as go
 from operator import itemgetter
 import itertools
 
-from core.re_and_globals import *
-
 
 #########################
 ####### HELPERS #########

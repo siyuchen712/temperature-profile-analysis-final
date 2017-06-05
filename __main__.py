@@ -8,7 +8,6 @@ from PyQt5.QtGui import *
 
 from core.analysis import *
 from core.data_import import *
-from core.re_and_globals import *
 
 
 TEXTFIELD_WIDTH = 3

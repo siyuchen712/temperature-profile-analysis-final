@@ -11,7 +11,7 @@ import itertools
 
 from core.plot import *
 from core.analysis import *
-from core.re_and_globals import *
+
 
 py.sign_in('sjbrun','v1jdPUhNoRgRBpAOOx7Y')
 
