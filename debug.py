@@ -6,7 +6,10 @@ from core.ptc_helpers import *
 
 
 #datapath = r"C:\Users\bruno\Programming Projects\Temp Profile Analysis\test_data\dat00002.csv"
-datapath = r"C:\Users\bruno\Programming Projects\Temp Profile Analysis\test_data\20170206_184930_P552 MCA PV PTC_01_B3.txt"
+datapath = r"C:\Users\bruno\Programming Projects\Temp Profile Analysis\test_data\20161022_131458_P552_MCA_DV_PTD_cycs16to30_01_B1.txt"
+#datapath = r"\\Chfile1\ecs_landrive\Automotive_Lighting\LED\P552 MCA Headlamp\P552 MCA Aux\ADVPR\DV Aux\TL A&B\PTC\Cycles 16-30\PTC test\Raw Data\20161022_131458_P552_MCA_DV_PTD_cycs16to30_01_B3.txt"
+
+
 upper_threshold, lower_threshold = 85, -40
 tolerance = 3
 rate_adjustment = 0

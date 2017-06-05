@@ -120,8 +120,8 @@ def single_channel_analysis(df, channel, amb, ambient, upper_threshold, lower_th
             ls_index_down.append(i*4 + down_i)
             ls_index_up.append(i*4 + up_i)
             ls_index_cold.append(i*4 + cold_i)
-            ls_index_hot.append(i*4 + hot_i)
-
+            ls_index_hot.append(i*4 + hot_i)   
+        
         ### SOAK ANALYSIS
         df_soak_high, df_soak_low = soak_analysis(channel, amb, selected_channel, df_chan, ls_index_cold, ls_index_hot, start_index_list)
 
@@ -173,7 +173,7 @@ def single_channel_analysis(df, channel, amb, ambient, upper_threshold, lower_th
                 ls_index_up.append(i*4 + up_i)
                 ls_index_cold.append(i*4 + cold_i)
                 ls_index_hot.append(i*4 + hot_i)
-                
+            
             ### SOAK ANALYSIS
             df_soak_high, df_soak_low = soak_analysis(channel, amb, selected_channel, df_chan, ls_index_cold, ls_index_hot, start_index_list)
 

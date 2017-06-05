@@ -36,11 +36,15 @@ def soak_analysis(channel_name, amb, ambient, df_chan_Ambient, ls_index_cold, ls
     df_soak_high = ambient.loc[ls_index_hot].sort_values(['Sweep_screen']).reset_index(drop=True)
 
     ## replace first keypoint 0 index with 4
-    reset_start_index_list = [4 if i==0 else i for i in start_index_list]
-    down_i = reset_start_index_list[0]
-    up_i = reset_start_index_list[1]
-    cold_i = reset_start_index_list[2]
-    hot_i = reset_start_index_list[3]
+    ##### --> TO DO: REVISIT THIS
+    down_i = start_index_list[0]
+    up_i = start_index_list[1]
+    cold_i = start_index_list[2]
+    hot_i = start_index_list[3]
+    if cold_i > up_i:
+        up_i += 4
+    if hot_i > down_i:
+        down_i += 4
 
     mean_temp_low, mean_temp_high = [], []
     max_temp_low, max_temp_high = [], []
@@ -48,12 +52,9 @@ def soak_analysis(channel_name, amb, ambient, df_chan_Ambient, ls_index_cold, ls
 
     number_of_cycles = int(ambient.shape[0]/4)  ## modify for all tests to keep test data at end 
     
-    # if channel_name != amb:
-    #     number_of_cycles -= 1
-
     for i in range(number_of_cycles-1):
         df_temp_low, df_temp_high = pd.DataFrame(), pd.DataFrame()
-        
+
         ## TO DO: check if df_chan_Ambient.iloc[ambient.iloc[4*i+cold_i] exists before executing code
         df_temp_low = df_chan_Ambient.iloc[ambient.iloc[4*i+cold_i]['Sweep_screen']:ambient.iloc[4*i+up_i]['Sweep_screen'],[3]]
         df_temp_high = df_chan_Ambient.iloc[ambient.iloc[4*i+hot_i]['Sweep_screen']:ambient.iloc[4*i+down_i]['Sweep_screen'],[3]]
@@ -229,10 +230,14 @@ def get_keypoints_for_each_cycle(channel, ambient, df_chan, upper_threshold, low
 
         result_points_3 = result[[2,3,4,5,6]]
 
-        result_points_3['diff_2_sweep#'] = result_points_3[[1]] - result_points_3[[1]].shift(1)
+        result_points_3['diff_2_sweep#'] = result_points_3[[1]].shift(-1) - result_points_3[[1]]
         result_index = result_points_3['diff_2_sweep#'][result_points_3['diff_2_sweep#'] > ripple_gap].index.tolist()
         result_index.append(0)
         result = result_points_3.loc[result_index].sort_values(['Sweep_screen']).reset_index(drop=True)
+
+
+        import pdb; pdb.set_trace() 
+
 
         if result.shape[0]< 5 and i!=ambient.shape[0]//4-1:
             n_reach.append(result)
