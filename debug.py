@@ -6,7 +6,7 @@ from core.ptc_helpers import *
 
 
 #datapath = r"C:\Users\bruno\Programming Projects\Temp Profile Analysis\test_data\dat00002.csv"
-datapath = r"L:\Automotive_Lighting\LED\P552 MCA Headlamp\P552 MCA Aux\ADVPR\PV Aux\TL A&B\PTC\Raw Data\20170213_141906_PV MCA PTC Cycles 16-30_01_B5.txt"
+datapath = r"C:\Users\s.chen6\Desktop\20161017_105827_P552 MCA DV PTC_02_B4.txt"
 #datapath = r"\\Chfile1\ecs_landrive\Automotive_Lighting\LED\P552 MCA Headlamp\P552 MCA Aux\ADVPR\DV Aux\TL A&B\PTC\Cycles 16-30\PTC test\Raw Data\20161022_131458_P552_MCA_DV_PTD_cycs16to30_01_B3.txt"
 
 

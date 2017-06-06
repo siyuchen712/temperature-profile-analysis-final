@@ -132,7 +132,7 @@ def get_amb_key_points(df_chan_Ambient_loc):
     # get the threshold of gap length
     result_index_1 = result['diff_1_sweep#'][result['diff_1_sweep#'] >1].index.tolist()
     result_index_2 = result['diff_2_sweep#'][result['diff_2_sweep#'] >1].index.tolist()
-    result_index = list(set(result_index_1) | set(result_index_2))
+    result_index = result_index_1 + list(set(result_index_2) - set(result_index_1))
     result = result.loc[result_index]
     result = result.sort_values(['Sweep_screen'])
     result = result.reset_index(drop=True)
@@ -143,7 +143,7 @@ def get_amb_key_points(df_chan_Ambient_loc):
     result_points_1.insert(0,'diff_2_sweep#',(result_points_1['Sweep_screen'] - result_points_1['Sweep_screen'].shift(1)).tolist())
 
     ripple_gap = (result_points_1['diff_1_sweep#'] + result_points_1['diff_2_sweep#']).mean()*0.5  ## TO DO --> set valid ratio
-    cycle_index = result_points_1['diff_1_sweep#'][result_points_1['diff_1_sweep#']>ripple_gap].index.tolist()
+    cycle_index = result_points_1['diff_1_sweep#'][result_points_1['diff_1_sweep#']>ripple_gap/2].index.tolist()
 
     result_points_1 = result_points_1.loc[cycle_index].sort_values(['Sweep_screen']).reset_index(drop=True)
     #result_points_1 = result_points_1.sort_values(['Sweep_screen']).reset_index(drop=True)
@@ -153,7 +153,6 @@ def get_amb_key_points(df_chan_Ambient_loc):
     ambient = result_points_1  ## ambient --> dataframe of key points and later has all calculations
 
     return ambient, ripple_gap
-
 
 def get_keypoints_for_each_cycle(channel, ambient, df_chan, upper_threshold, lower_threshold, ripple_gap):
     ''' Get get keypoints each cycle of a non-ambient channel (Thermal Shock) '''
@@ -192,48 +191,43 @@ def get_keypoints_for_each_cycle(channel, ambient, df_chan, upper_threshold, low
         ls_cycle.append(ls_cycle_component)
 
         #The index of all the points of temp out of threshold
-        high_index = ls_cycle[i][channel][ls_cycle[i][channel]> upper_threshold].index.tolist()
-        low_index = ls_cycle[i][channel][ls_cycle[i][channel]< lower_threshold].index.tolist()
+        high_index = ls_cycle[i][channel][ls_cycle[i][channel] > upper_threshold].index.tolist()
+        low_index = ls_cycle[i][channel][ls_cycle[i][channel] < lower_threshold].index.tolist()
         point_index = []
         for m in range(int(len(low_index))):
             point_index.append(low_index[m])
         for n in range(int(len(high_index))):
             point_index.append(high_index[n])   
 
-        point_index = np.sort(point_index)
-        point_index = point_index.tolist()
+        point_index = np.sort(point_index).tolist()
         point_cycle_index.append(point_index)
         ls_cycle[i] = ls_cycle[i].loc[point_cycle_index[i]]
     
         ## Gap point
-        result = ls_cycle[i]
+        result_1 = ls_cycle[i]
 
-        result['diff_1_sweep#'] = ls_cycle[i]['Sweep_screen'].shift(-1) - ls_cycle[i]['Sweep_screen']
-        result['diff_2_sweep#'] = ls_cycle[i]['Sweep_screen'] - ls_cycle[i]['Sweep_screen'].shift(1)
-        result = result.sort_values(['Sweep_screen']).reset_index(drop=True)
+        result_1['diff_1_sweep#'] = ls_cycle[i]['Sweep_screen'].shift(-1) - ls_cycle[i]['Sweep_screen']
+        result_1['diff_2_sweep#'] = ls_cycle[i]['Sweep_screen'] - ls_cycle[i]['Sweep_screen'].shift(1)
+        result_2 = result_1.sort_values(['Sweep_screen']).reset_index(drop=True)
 
-        result_index_1 = result['diff_1_sweep#'][result['diff_1_sweep#'] >1].index.tolist()
-        result_index_2 = result['diff_2_sweep#'][result['diff_2_sweep#'] >1].index.tolist()
+        result_index_1 = result_2['diff_1_sweep#'][result_2['diff_1_sweep#'] >1].index.tolist()
+        result_index_2 = result_2['diff_2_sweep#'][result_2['diff_2_sweep#'] >1].index.tolist()
         result_index = list(set(result_index_1) | set(result_index_2))
-        result = result.loc[result_index].sort_values(['Sweep_screen']).reset_index(drop=True)
+        result_3 = result_2.loc[result_index].sort_values(['Sweep_screen']).reset_index(drop=True)
 
         ## Get the threshold of gap length
-        result_points_2 = result.iloc[:, [0,1,2,3,4]]
+        result_points_2 = result_3.iloc[:, [0,1,2,3,4]]
 
         result_points_2.insert(0,'diff_1_sweep#',(result_points_2['Sweep_screen'].shift(-1) - result_points_2['Sweep_screen']).tolist())
         result_points_2.insert(0,'diff_2_sweep#',(result_points_2['Sweep_screen'] - result_points_2['Sweep_screen'].shift(1)).tolist())
         
-        result_index_1 = result_points_2['diff_1_sweep#'][result_points_2['diff_1_sweep#'] > ripple_gap].index.tolist()
-        result_index_2 = result_points_2['diff_2_sweep#'][result_points_2['diff_2_sweep#'] > ripple_gap].index.tolist()
-        result_index = list(set(result_index_1) | set(result_index_2))
+        result_index_1 = result_points_2['diff_1_sweep#'][result_points_2['diff_1_sweep#'] > ripple_gap/2].index.tolist()
+        result_index_2 = result_points_2['diff_2_sweep#'][result_points_2['diff_2_sweep#'] > ripple_gap/2].index.tolist()
+        result_index = result_index_1 + list(set(result_index_2) - set(result_index_1))
+        result_4 = result_3.loc[result_index].sort_values(['Sweep_screen']).reset_index(drop=True)
 
-        result = result_points_2.loc[result_index].sort_values(['Sweep_screen']).reset_index(drop=True)
-
-        result_points_3 = result.iloc[:, [2,3,4,5,6]]
-
-        result_points_3['diff_1_sweep#'] = result_points_3['Sweep_screen'] - result_points_3['Sweep_screen'].shift(1)
-        result_index = result_points_3['diff_1_sweep#'][result_points_3['diff_1_sweep#'] > ripple_gap].index.tolist()
-        result_index.append(0)
+        result_index = result_4['diff_1_sweep#'][result_4['diff_1_sweep#']+result_4['diff_2_sweep#'] > ripple_gap/2].index.tolist()
+        result_points_3 = result_4.iloc[:,[0,1,2,3,4]]
         result = result_points_3.loc[result_index].sort_values(['Sweep_screen']).reset_index(drop=True)
 
         if result.shape[0]< 5 and i!=ambient.shape[0]//4-1:
