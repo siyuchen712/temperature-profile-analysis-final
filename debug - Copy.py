@@ -5,10 +5,10 @@ from core.data_import import *
 
 
 
-datapath = r"C:\Users\s.chen6\Desktop\dat00001.csv"
+datapath = r"C:\Users\s.chen6\Desktop\dat00002.csv"
 upper_threshold, lower_threshold = 95, -40
 tolerance = 3
-rate_adjustment = 10
+rate_adjustment = 0
 ambient_channel_number = 1
 
 ## DATA IMPORT

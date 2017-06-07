@@ -18,14 +18,28 @@ import itertools
 
 ########### Excel writing functions
 def create_wb():
-    writer = pd.ExcelWriter('output.xlsx')
-    return writer
+    writer = pd.ExcelWriter('output.xlsx', engine = 'xlsxwriter')
+    #workbook = xlsxwriter.Workbook('output.xlsx')
+    return writer#, workbook
 
 def write_multiple_dfs(writer, df_list, worksheet_name, spaces):
-    row = 0
+    row = 5
     for dataframe in df_list:
         dataframe.to_excel(writer, sheet_name=worksheet_name, startrow=row , startcol=0)   
-        row = row + len(dataframe.index) + spaces + 1
+        worksheet = writer.sheets[worksheet_name]
+        row = row - 5
+        df_instruction(worksheet, row, 'text')
+        row = row + len(dataframe.index) + spaces + 11
+
+def df_instruction(worksheet, row, text):
+    col = 0
+    # Example
+    options = {
+        'font': {'bold': True},
+        'width': 512,
+        'height': 100,
+    }
+    worksheet.insert_textbox(row, col, text, options)
     # don't save (wait for other thermocouples)
 
 

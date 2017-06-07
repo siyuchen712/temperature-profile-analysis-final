@@ -195,10 +195,10 @@ def single_channel_analysis(df, channel, amb, ambient, upper_threshold, lower_th
             period.append(x)
 
         df_summary = pd.concat(uncontn_summary,axis=0, keys=period)
-        df_summary.index.names = ['Periods']
+        df_summary.index.names = ['period #', 'value']
         result_each_cycle = pd.concat(uncontn_result_each_cycle,axis=0, keys=period)
         result_each_cycle.index.names = ['Periods']
-        df_summary = df_summary[cols_df_summary]
+        result_each_cycle.index.names = ['period #', 'cycle #']
         result_each_cycle = result_each_cycle[cols_result_each_cycle]
         
         
