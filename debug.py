@@ -12,7 +12,7 @@ datapath = r"C:\Users\s.chen6\Desktop\20161017_105827_P552 MCA DV PTC_02_B4.txt"
 
 upper_threshold, lower_threshold = 85, -40
 tolerance = 3
-rate_adjustment = 0
+rate_adjustment = 10
 ambient_channel_number = 1
 
 ## DATA IMPORT

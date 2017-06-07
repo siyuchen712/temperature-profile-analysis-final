@@ -28,9 +28,10 @@ def ptc_analyze_all_channels(df, channels, amb, amb_errors, tc_channel_names, up
 
     ### all other channels
     if rate_adjustment or rate_adjustment != 0:  ## apply rate adjustment if supplied and not zero
-        temp_adjustment = rate_adjustment*(float(upper_threshold) - float(lower_threshold))
+        temp_adjustment = rate_adjustment*(float(upper_threshold) - float(lower_threshold))/100
         upper_threshold = upper_threshold - temp_adjustment
         lower_threshold = lower_threshold + temp_adjustment
+
     else: ## otherwise use tolerance used for ambient
         upper_threshold = amb_upper_threshold
         lower_threshold = amb_lower_threshold
@@ -194,9 +195,12 @@ def single_channel_analysis(df, channel, amb, ambient, upper_threshold, lower_th
             period.append(x)
 
         df_summary = pd.concat(uncontn_summary,axis=0, keys=period)
+        df_summary.index.names = ['Periods']
         result_each_cycle = pd.concat(uncontn_result_each_cycle,axis=0, keys=period)
+        result_each_cycle.index.names = ['Periods']
         df_summary = df_summary[cols_df_summary]
         result_each_cycle = result_each_cycle[cols_result_each_cycle]
+        
         
         nr_period = []
         for i in range(len(n_reach)):
