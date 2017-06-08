@@ -18,19 +18,48 @@ import xlsxwriter
 #########################
 
 ########### Excel writing functions
+# def create_wb():
+#     writer = pd.ExcelWriter('output.xlsx', engine = 'xlsxwriter')
+#     #workbook = xlsxwriter.Workbook('output.xlsx')
+#     return writer#, workbook
+
+# def write_multiple_dfs(writer, df_list, worksheet_name, spaces):
+#     row = 5
+#     for dataframe in df_list:
+#         dataframe.to_excel(writer, sheet_name=worksheet_name, startrow=row , startcol=0)   
+#         worksheet = writer.sheets[worksheet_name]
+#         row = row - 5
+#         df_instruction(worksheet, row, 'text')
+#         row = row + len(dataframe.index) + spaces + 11
+
+# def df_instruction(worksheet, row, text):
+#     col = 0
+#     # Example
+#     options = {
+#         'font': {'bold': True},
+#         'width': 512,
+#         'height': 100,
+#     }
+#     worksheet.insert_textbox(row, col, text, options)
+#     # don't save (wait for other thermocouples)
+
+
+
+
+
 def create_wb():
     writer = pd.ExcelWriter('output.xlsx', engine = 'xlsxwriter')
     #workbook = xlsxwriter.Workbook('output.xlsx')
     return writer#, workbook
 
-def write_multiple_dfs(writer, df_list, worksheet_name, spaces):
+def write_multiple_dfs(writer, df_list, worksheet_name, spaces, content_instruction):
     row = 5
-    for dataframe in df_list:
-        dataframe.to_excel(writer, sheet_name=worksheet_name, startrow=row , startcol=0)   
+    for x in range(len(df_list)):
+        df_list[x].to_excel(writer, sheet_name=worksheet_name, startrow=row , startcol=0)   
         worksheet = writer.sheets[worksheet_name]
         row = row - 5
-        df_instruction(worksheet, row, 'text')
-        row = row + len(dataframe.index) + spaces + 11
+        df_instruction(worksheet, row, content_instruction[x])
+        row = row + len(df_list[x].index) + spaces + 11
 
 def df_instruction(worksheet, row, text):
     col = 0

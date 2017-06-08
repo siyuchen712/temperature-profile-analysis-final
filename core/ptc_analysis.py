@@ -23,8 +23,8 @@ def ptc_analyze_all_channels(df, channels, amb, amb_errors, tc_channel_names, up
     ## analyze ambient
     amb_upper_threshold = upper_threshold - tolerance
     amb_lower_threshold = lower_threshold + tolerance
-    result_each_cycle_amb, df_summary_amb, ambient, ripple_gap = ambient_analysis(df, channels, amb, amb_upper_threshold, amb_lower_threshold, date_format)
-    write_multiple_dfs(writer, [amb_errors, df_summary_amb, result_each_cycle_amb], 'Amb '+str(amb), 3)
+    result_each_cycle_amb, df_summary_amb, ambient, ripple_gap, content_instruction_ambient = ambient_analysis(df, channels, amb, amb_upper_threshold, amb_lower_threshold, date_format)
+    write_multiple_dfs(writer, [amb_errors, df_summary_amb, result_each_cycle_amb], 'Amb '+str(amb), 3, content_instruction_ambient)
 
     ### all other channels
     if rate_adjustment or rate_adjustment != 0:  ## apply rate adjustment if supplied and not zero
@@ -39,12 +39,12 @@ def ptc_analyze_all_channels(df, channels, amb, amb_errors, tc_channel_names, up
         print(channel)
         if channel != amb:
             result_each_cycle, df_summary_tc, n_reach_summary = pd.DataFrame(), pd.DataFrame(), pd.DataFrame() ## ensure reset
-            result_each_cycle, df_summary_tc, n_reach_summary= single_channel_analysis(df, channel, amb, ambient, upper_threshold, lower_threshold, date_format, ripple_gap)
+            result_each_cycle, df_summary_tc, n_reach_summary, content_instruction = single_channel_analysis(df, channel, amb, ambient, upper_threshold, lower_threshold, date_format, ripple_gap)
             if tc_channel_names[channel]:
                 tc_name = tc_channel_names[channel] + ' (' + channel.split(' ')[1] + ')'
             else:
                 tc_name = channel
-            write_multiple_dfs(writer, [df_summary_tc, result_each_cycle, n_reach_summary], tc_name, 3)
+            write_multiple_dfs(writer, [df_summary_tc, result_each_cycle, n_reach_summary], tc_name, 3, content_instruction)
     writer.save()
 
 
@@ -87,7 +87,10 @@ def ambient_analysis(df, channels, amb, upper_threshold, lower_threshold, date_f
     ### Create summary
     result_each_cycle, df_summary = create_analysis_summary(amb, amb, df_soak_high, df_soak_low, df_transform_down, df_transform_up)
 
-    return result_each_cycle, df_summary, ambient, ripple_gap
+    cycle_amount = len(result_each_cycle)
+    content_instruction = ['In this test file, there are '+ str(cycle_amount) +' cycles.\n\nThe First Table: List out the test data that have reading error.', 'The Second Table: Summary table for the ambient.', 'The Third Table: List out the calculation result for each cycle of ambient.']
+
+    return result_each_cycle, df_summary, ambient, ripple_gap, content_instruction
 
 
 def single_channel_analysis(df, channel, amb, ambient, upper_threshold, lower_threshold, date_format, ripple_gap):
@@ -131,10 +134,13 @@ def single_channel_analysis(df, channel, amb, ambient, upper_threshold, lower_th
 
         ## Create summary table
         result_each_cycle, df_summary = create_analysis_summary(channel, amb, df_soak_high, df_soak_low, df_transform_down, df_transform_up)
+        content_instruction = ['Every cycle of this channel can reach the threshold!\n\nThe First Table: List out the summary table.', 'The Second Table: Summary table for this channel.', ' ']
+
 
     elif not cycle_ls:  ##  none of the cycles reached
         df_summary, result_each_cycle = pd.DataFrame(), pd.DataFrame()
         ## pd.DataFrame({1:'NO CYCLES REACH THE THRESHOLDS'}, [0])
+        content_instruction = ['No cycle of this channel can reach the threshold!', ' ', ' ']
 
     else:  ### only some of the cycles reached the thresholds
         consecutive_cycle = []  ## list of lists --> cycle numbers that reached consecutively
@@ -208,6 +214,8 @@ def single_channel_analysis(df, channel, amb, ambient, upper_threshold, lower_th
 
         n_reach_summary = pd.concat(n_reach,axis=0, keys=nr_period)
         n_reach_summary = n_reach_summary[['cycle#', 'Sweep #', 'time', channel]]
+        content_instruction = ['Only some cycles of this channel can reach the threshold!\n\nThe First Table: List out the summary table based on the period, where some of the cycles are consequtive.', 'The Second Table: List out the calculation result for each cycle of the consequtive period.', 'These cycles cannot reach the threshold: '+str(nr_period)+ '\n\nThe Third Table: List out the key points, which can touch the threshold.']
 
-    return result_each_cycle, df_summary, n_reach_summary
+
+    return result_each_cycle, df_summary, n_reach_summary, content_instruction
 
